@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ANMC 2026 — Badge Desk Sign-up</title>
+<style>
+  :root{--navy:#12356b;--blue:#1766b3;--teal:#2aa0c6;--ok:#2a9d55;--line:#e3ecf6;}
+  *{box-sizing:border-box}
+  body{margin:0;font-family:"Segoe UI",system-ui,Arial,sans-serif;background:#eef4fb;color:#13233f}
+  header{background:linear-gradient(135deg,var(--blue),var(--teal));color:#fff;padding:18px 16px;text-align:center}
+  header h1{margin:0;font-size:18px;font-weight:800}
+  header p{margin:5px 0 0;font-size:13px;opacity:.95}
+  .wrap{max-width:620px;margin:0 auto;padding:16px}
+  .intro{font-size:13px;color:#5a7098;text-align:center;margin:4px 0 16px}
+  .day{background:#fff;border:1px solid var(--line);border-radius:16px;padding:14px;margin-bottom:16px;box-shadow:0 6px 18px rgba(20,60,120,.06)}
+  .day h2{margin:0 0 2px;font-size:16px;color:var(--navy)}
+  .day .time{font-size:12px;color:#7088a8;margin-bottom:10px}
+  .day .left{float:left;font-size:12px;color:var(--ok);font-weight:700}
+  .tbl{display:flex;align-items:center;gap:10px;padding:9px 0;border-top:1px dashed var(--line)}
+  .tbl .no{width:70px;font-weight:700;color:var(--navy);font-size:14px;flex:none}
+  .seats{display:flex;gap:8px;flex:1;flex-wrap:wrap}
+  .seat{flex:1;min-width:130px;border:1px solid var(--line);border-radius:10px;padding:9px 11px;font-size:13.5px;display:flex;align-items:center;justify-content:space-between;gap:8px;background:#fafcff}
+  .seat.filled{background:#eaf7ef;border-color:#bfe6cd}
+  .seat .nm{font-weight:700;color:#13233f;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .seat .add{color:var(--blue);font-weight:700;cursor:pointer;width:100%;text-align:center}
+  .seat .x{color:#c0392b;cursor:pointer;font-weight:800;flex:none;padding:0 2px}
+  .muted{font-size:11px;color:#9bb0cc}
+  #status{position:fixed;left:50%;bottom:16px;transform:translateX(-50%);background:#12356b;color:#fff;padding:9px 16px;border-radius:999px;font-size:13px;opacity:0;transition:opacity .25s;pointer-events:none;z-index:9}
+  #status.show{opacity:1}
+  .reload{display:block;margin:0 auto 18px;background:#fff;border:1px solid var(--line);border-radius:10px;padding:9px 16px;color:var(--blue);font-weight:700;cursor:pointer}
+</style></head>
+<body>
+<header>
+  <h1>ANMC 2026 · Badge Desk Sign-up</h1>
+  <p>6th Arab Nurses &amp; Midwives Conference</p>
+</header>
+
+<div class="wrap">
+  <div class="intro">Pick a day that suits you and add your name to an empty seat. 5 tables · 2 volunteers each · 11:00 AM – 4:00 PM.</div>
+  <button class="reload" id="reload">↻ Refresh</button>
+  <div id="days"></div>
+  <div class="muted" style="text-align:center;margin:6px 0 26px">Tap ✕ next to your name to release a seat if your plans change.</div>
+</div>
+<div id="status"></div>
+
+<script>
+const CFG={
+  URL:"https://xmdkvxzflbbdnkwsggjm.supabase.co",
+  ANON:"sb_publishable_5UXQ_sYU5KOnRob11-ic1g_VtjUhXP8",
+  T:"badge_desk_signups"
+};
+const DAYS=[
+  {d:"2026-11-16",label:"Monday · 16 Nov 2026"},
+  {d:"2026-11-17",label:"Tuesday · 17 Nov 2026"},
+  {d:"2026-11-18",label:"Wednesday · 18 Nov 2026"}
+];
+const TABLES=5, SEATS=2;
+const $=id=>document.getElementById(id);
+let rows=[];
+
+function H(path,opts={}){
+  opts.headers=Object.assign({apikey:CFG.ANON,Authorization:'Bearer '+CFG.ANON,'Content-Type':'application/json'},opts.headers||{});
+  return fetch(CFG.URL+'/rest/v1/'+path,opts);
+}
+function toast(msg){ const s=$('status'); s.textContent=msg; s.classList.add('show'); clearTimeout(window.__t); window.__t=setTimeout(()=>s.classList.remove('show'),1800); }
+function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+function keyOf(day,t,seat){ return day+'|'+t+'|'+seat; }
+
+async function load(){
+  try{
+    const r=await H(CFG.T+'?select=id,day,table_no,seat,name&order=day,table_no,seat');
+    rows=r.ok?await r.json():[];
+  }catch(_){ rows=[]; }
+  render();
+}
+
+function render(){
+  const map={}; rows.forEach(x=>{ map[keyOf(x.day,x.table_no,x.seat)]=x; });
+  const host=$('days'); host.innerHTML='';
+  DAYS.forEach(day=>{
+    let filled=0;
+    const el=document.createElement('div'); el.className='day';
+    let html='<h2>'+day.label+'</h2><div class="time">11:00 AM – 4:00 PM</div>';
+    let body='';
+    for(let t=1;t<=TABLES;t++){
+      let seatsHtml='';
+      for(let s=1;s<=SEATS;s++){
+        const rec=map[keyOf(day.d,t,s)];
+        if(rec){ filled++;
+          seatsHtml+='<div class="seat filled"><span class="nm">'+esc(rec.name)+'</span><span class="x" data-id="'+rec.id+'" data-name="'+esc(rec.name)+'">✕</span></div>';
+        }else{
+          seatsHtml+='<div class="seat"><span class="add" data-day="'+day.d+'" data-t="'+t+'" data-s="'+s+'">+ Add your name</span></div>';
+        }
+      }
+      body+='<div class="tbl"><div class="no">Table '+t+'</div><div class="seats">'+seatsHtml+'</div></div>';
+    }
+    const remaining=TABLES*SEATS-filled;
+    html='<div class="left">'+remaining+' seat'+(remaining===1?'':'s')+' left</div>'+html+body;
+    el.innerHTML=html; host.appendChild(el);
+  });
+  // wire
+  host.querySelectorAll('.add').forEach(b=>b.onclick=onAdd);
+  host.querySelectorAll('.x').forEach(b=>b.onclick=onRemove);
+}
+
+async function onAdd(e){
+  const b=e.currentTarget;
+  const name=(prompt('Enter your name:')||'').trim();
+  if(!name) return;
+  const payload={day:b.dataset.day,table_no:+b.dataset.t,seat:+b.dataset.s,name:name};
+  try{
+    const r=await H(CFG.T,{method:'POST',headers:{'Prefer':'return=representation'},body:JSON.stringify(payload)});
+    if(r.status===409){ toast('That seat was just taken — refreshing'); return load(); }
+    if(!r.ok) throw new Error(await r.text());
+    toast('Added ✓'); load();
+  }catch(ex){ toast('Error — try again'); load(); }
+}
+async function onRemove(e){
+  const b=e.currentTarget;
+  if(!confirm('Release this seat for '+b.dataset.name+'?')) return;
+  try{
+    const r=await H(CFG.T+'?id=eq.'+b.dataset.id,{method:'DELETE'});
+    if(!r.ok) throw new Error(await r.text());
+    toast('Seat released'); load();
+  }catch(ex){ toast('Error — try again'); load(); }
+}
+$('reload').onclick=load;
+load();
+</script>
+</body></html>
