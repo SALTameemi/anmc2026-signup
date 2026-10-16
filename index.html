@@ -15,9 +15,10 @@
   .day h2{margin:0 0 2px;font-size:16px;color:var(--navy)}
   .day .time{font-size:12px;color:#7088a8;margin-bottom:10px}
   .day .left{float:left;font-size:12px;color:var(--ok);font-weight:700}
-  .tbl{display:flex;align-items:center;gap:10px;padding:9px 0;border-top:1px dashed var(--line)}
-  .tbl .no{width:70px;font-weight:700;color:var(--navy);font-size:14px;flex:none}
-  .seats{display:flex;gap:8px;flex:1;flex-wrap:wrap}
+  .tbl{padding:10px 0;border-top:1px dashed var(--line)}
+  .tbl .no{font-weight:800;color:var(--navy);font-size:14px;margin-bottom:7px}
+  .tbl .no small{display:block;font-weight:600;color:#7088a8;font-size:11.5px;margin-top:1px}
+  .seats{display:flex;gap:8px;flex-wrap:wrap}
   .seat{flex:1;min-width:130px;border:1px solid var(--line);border-radius:10px;padding:9px 11px;font-size:13.5px;display:flex;align-items:center;justify-content:space-between;gap:8px;background:#fafcff}
   .seat.filled{background:#eaf7ef;border-color:#bfe6cd}
   .seat .nm{font-weight:700;color:#13233f;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -35,7 +36,7 @@
 </header>
 
 <div class="wrap">
-  <div class="intro">Pick a day that suits you and add your name to an empty seat. 5 tables · 2 volunteers each · 11:00 AM – 4:00 PM.</div>
+  <div class="intro">Pick a day that suits you and add your name to an empty seat. 10 volunteers per day · 11:00 AM – 4:00 PM.</div>
   <button class="reload" id="reload">↻ Refresh</button>
   <div id="days"></div>
   <div class="muted" style="text-align:center;margin:6px 0 26px">Tap ✕ next to your name to release a seat if your plans change.</div>
@@ -53,7 +54,15 @@ const DAYS=[
   {d:"2026-11-17",label:"Tuesday · 17 Nov 2026"},
   {d:"2026-11-18",label:"Wednesday · 18 Nov 2026"}
 ];
-const TABLES=5, SEATS=2;
+const STATIONS=[
+  {no:1, label:"🟦 Table 1 · Pickup A–H", note:"2 staff", seats:2},
+  {no:2, label:"🟦 Table 2 · Pickup I–Q", note:"2 staff", seats:2},
+  {no:3, label:"🟦 Table 3 · Pickup R–Z", note:"2 staff + power", seats:2},
+  {no:4, label:"🖨 Table 4 · Printing & corrections", note:"2 staff + printer", seats:2},
+  {no:5, label:"⭐ Table 5 · VIP / Speakers / Guests / Members", note:"1 staff + power", seats:1},
+  {no:6, label:"🚪 Entrance · Greeter — directs by surname", note:"1 staff", seats:1}
+];
+const SEATS_PER_DAY=STATIONS.reduce((a,s)=>a+s.seats,0);
 const $=id=>document.getElementById(id);
 let rows=[];
 
@@ -81,19 +90,19 @@ function render(){
     const el=document.createElement('div'); el.className='day';
     let html='<h2>'+day.label+'</h2><div class="time">11:00 AM – 4:00 PM</div>';
     let body='';
-    for(let t=1;t<=TABLES;t++){
+    STATIONS.forEach(st=>{
       let seatsHtml='';
-      for(let s=1;s<=SEATS;s++){
-        const rec=map[keyOf(day.d,t,s)];
+      for(let s=1;s<=st.seats;s++){
+        const rec=map[keyOf(day.d,st.no,s)];
         if(rec){ filled++;
           seatsHtml+='<div class="seat filled"><span class="nm">'+esc(rec.name)+'</span><span class="x" data-id="'+rec.id+'" data-name="'+esc(rec.name)+'">✕</span></div>';
         }else{
-          seatsHtml+='<div class="seat"><span class="add" data-day="'+day.d+'" data-t="'+t+'" data-s="'+s+'">+ Add your name</span></div>';
+          seatsHtml+='<div class="seat"><span class="add" data-day="'+day.d+'" data-t="'+st.no+'" data-s="'+s+'">+ Add your name</span></div>';
         }
       }
-      body+='<div class="tbl"><div class="no">Table '+t+'</div><div class="seats">'+seatsHtml+'</div></div>';
-    }
-    const remaining=TABLES*SEATS-filled;
+      body+='<div class="tbl"><div class="no">'+st.label+'<small>'+st.note+'</small></div><div class="seats">'+seatsHtml+'</div></div>';
+    });
+    const remaining=SEATS_PER_DAY-filled;
     html='<div class="left">'+remaining+' seat'+(remaining===1?'':'s')+' left</div>'+html+body;
     el.innerHTML=html; host.appendChild(el);
   });
